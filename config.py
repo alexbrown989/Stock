@@ -43,6 +43,19 @@ MAX_PAIN_ABOVE_PCT_MAX: float = 0.10   # 10 %
 TARGET_DTE_MIN: int = 10
 TARGET_DTE_MAX: int = 21   # 2-week premium harvest window
 
+# ── Exit Management (TastyTrade 50 % rule — core discipline) ─────────────────
+# Close when the position has earned 50 % of max premium. This is the single
+# most empirically-validated rule in systematic premium selling. It frees
+# capital for the next trade and eliminates gamma risk near expiry.
+PROFIT_TARGET_PCT: float    = 0.50   # close at 50 % of max premium collected
+STOP_LOSS_MULTIPLIER: float = 2.0    # hard stop: loss = 2× credit received
+ROLL_DTE_THRESHOLD: int     = 7      # roll if untested and DTE falls below this
+
+# ── Position Sizing ───────────────────────────────────────────────────────────
+# With $7K capital we can typically sell 1–3 contracts depending on the name.
+MAX_POSITION_PCT: float     = 0.30   # max 30 % of total capital per name
+MAX_CONCURRENT_TRADES: int  = 4      # avoids over-concentration
+
 # ── Scan Schedule ─────────────────────────────────────────────────────────────
 SCAN_INTERVAL_HOURS: int = 4
 
@@ -59,7 +72,8 @@ PEAK_FEAR_IV_RANK_THRESHOLD: float = 75.0  # IV Rank > 75 % = peak fear
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 import os
-BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 LEDGER_PATH = os.path.join(BASE_DIR, "ledger.json")
 DATA_DIR    = os.path.join(BASE_DIR, "data")
 LOG_DIR     = os.path.join(BASE_DIR, "data", "logs")
+CACHE_DIR   = os.path.join(BASE_DIR, "data", "cache")

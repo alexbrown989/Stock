@@ -27,18 +27,17 @@ Embed structure:
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import os
 import sys
-from dataclasses import asdict
 from datetime import datetime
-from typing import Optional
 
 import requests
 
 # Allow running directly from repo root
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import config  # noqa: E402 — must come after sys.path insert
 
 log = logging.getLogger(__name__)
 
@@ -333,6 +332,3 @@ if __name__ == "__main__":
 
     # If called with JSON via stdin or --payload, parse and dispatch
     parser.print_help()
-
-# Keep config import for the defensive-roll alert
-import config

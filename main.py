@@ -42,6 +42,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 import config
 import ledger as ledger_module
 from scanner import dark_pool, gamma_squeeze, max_pain, sentiment
+from scanner import exit_manager, tech_levels as tech_levels_mod
 from scanner.options_analyzer import OptionContract, analyze_ticker
 from simulation.wheel_sim import SimResult, run_batch, simulate
 
@@ -127,8 +128,15 @@ def run_scan_cycle(tickers: list[str] | None = None) -> list[SimResult]:
                 log.info("    %s: no contracts in DTE window", symbol)
                 continue
 
-            # Max Pain
-            mp = max_pain.nearest(symbol)
+            # Max Pain + Technical Levels (run in parallel context)
+            mp     = max_pain.nearest(symbol)
+            levels = tech_levels_mod.analyze(symbol)
+            if levels.nearest_resistance:
+                log.debug(
+                    "  %s resistance: $%.2f (%.1f%% away)",
+                    symbol, levels.nearest_resistance,
+                    levels.distance_to_resistance_pct or 0,
+                )
 
             # Run simulation on all candidate contracts
             sim_results = run_batch(contracts)
@@ -154,6 +162,11 @@ def run_scan_cycle(tickers: list[str] | None = None) -> list[SimResult]:
                         c.iv_rank,
                         c.theta_premium_ratio * 100,
                     )
+                    # Assess strike quality vs. technical resistance
+                    tech_grade, tech_reason = levels.call_strike_assessment(c.strike)
+                    if tech_grade in ("RISKY", "AVOID"):
+                        log.warning("  ⚠ Tech level: %s — %s", tech_grade, tech_reason)
+
                     _notify_golden(
                         result,
                         gamma_sigs_for_ticker,
@@ -216,6 +229,69 @@ def run_scan_cycle(tickers: list[str] | None = None) -> list[SimResult]:
     return all_results
 
 
+# ── Position Monitor Cycle ────────────────────────────────────────────────────
+
+def run_position_monitor() -> None:
+    """
+    Check all open ledger positions against the exit decision tree:
+      - 50 % profit target → CLOSE
+      - 2× credit loss     → CLOSE (stop-loss)
+      - Delta breach >0.70 → URGENT ROLL
+      - DTE < 7, untested  → ROLL
+    Sends Discord alerts for any actionable signal.
+    """
+    signals = exit_manager.scan_open_positions()
+    if not signals:
+        log.info("Position monitor: no open trades.")
+        return
+
+    for sig in signals:
+        icon = {"CLOSE": "💰", "ROLL": "🔄", "ROLL_UP": "🔄⬆",
+                "URGENT_ROLL": "🚨", "HOLD": "✅"}.get(sig.action.value, "")
+        log.info(
+            "%s %s [%s] %s | P&L: $%.2f (%.1f%%)",
+            icon, sig.ticker, sig.action.value, sig.reason,
+            sig.pnl_if_closed, sig.pnl_pct,
+        )
+        if sig.action.value != "HOLD" and _discord_available:
+            _notify_exit(sig)
+
+
+def _notify_exit(sig) -> None:
+    if not _discord_available:
+        return
+    try:
+        now    = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+        colour = {"CLOSE": 0x00FF00, "ROLL": 0x00BFFF,
+                  "URGENT_ROLL": 0xFF4500, "ROLL_UP": 0xFF8C00}.get(sig.action.value, 0x808080)
+        roll_text = ""
+        if sig.roll_to_expiry:
+            net_cr_str = f"Net credit: ${sig.roll_net_credit:.2f}" if sig.roll_net_credit is not None else ""
+            roll_text = (
+                f"\n**Roll to:** `{sig.roll_to_expiry}` strike `${sig.roll_to_strike}`  {net_cr_str}"
+            )
+        payload = {
+            "username": "Alpha-Harvest Bot",
+            "embeds": [{
+                "title": f"{sig.action.value} SIGNAL — {sig.ticker} [{sig.trade_id}]",
+                "description": (
+                    f"{sig.reason}{roll_text}\n\n"
+                    f"**P&L if closed now:** `${sig.pnl_if_closed:+.2f}` ({sig.pnl_pct:+.1f}%)\n"
+                    f"**Current mid:** `${sig.current_mid:.2f}` vs entry `${sig.entry_credit:.2f}`\n"
+                    f"**DTE remaining:** `{sig.current_dte}`"
+                ),
+                "color": colour,
+                "footer": {"text": f"Alpha-Harvest v4.6 | {now}"},
+            }],
+        }
+        import requests
+        url = os.environ.get("DISCORD_WEBHOOK_URL", "")
+        if url:
+            requests.post(url, json=payload, timeout=10)
+    except Exception as exc:
+        log.error("Exit notify failed: %s", exc)
+
+
 def _notify_golden(
     result,
     gamma_sigs,
@@ -252,7 +328,8 @@ def run_scheduler(tickers: list[str] | None = None) -> None:
     )
     while True:
         try:
-            run_scan_cycle(tickers)
+            run_position_monitor()   # check exits first
+            run_scan_cycle(tickers)  # then look for new entries
         except Exception as exc:
             log.error("Scan cycle error: %s", exc, exc_info=True)
 
@@ -293,7 +370,16 @@ def main() -> None:
         metavar="TRADE_ID",
         help="Close a trade by ID (prompts for close cost).",
     )
+    parser.add_argument(
+        "--monitor",
+        action="store_true",
+        help="Run one position-monitor cycle (check exits on open trades) and exit.",
+    )
     args = parser.parse_args()
+
+    if args.monitor:
+        run_position_monitor()
+        return
 
     if args.ledger:
         import json

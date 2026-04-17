@@ -217,15 +217,21 @@ def scan_ticker(symbol: str) -> list[SetupCandidate]:
         stock_levels     = levels_mod.analyze(symbol, hist)
 
         today = date.today()
-        for exp_str in tk.options:
+        options_list = tk.options
+        if not isinstance(options_list, (list, tuple)):
+            return results
+        for exp_str in options_list:
             exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
             dte      = (exp_date - today).days
             if not (config.DTE_MIN <= dte <= config.DTE_MAX):
                 continue
 
-            mp    = _max_pain(tk, exp_str)
-            chain = tk.option_chain(exp_str)
-            calls = chain.calls.copy()
+            mp = _max_pain(tk, exp_str)
+            try:
+                chain = tk.option_chain(exp_str)
+                calls = chain.calls.copy()
+            except Exception:
+                continue
 
             # Basic pre-filter before the per-row loop
             calls = calls[

@@ -207,10 +207,13 @@ def scan_ticker(symbol: str) -> list[SetupCandidate]:
     """
     results: list[SetupCandidate] = []
     try:
-        tk   = yf.Ticker(symbol)
-        hist = tk.history(period="6mo")   # shared for IV rank + levels
+        tk = yf.Ticker(symbol)
+        try:
+            hist = tk.history(period="6mo")
+        except Exception:
+            return results
         if hist.empty:
-            return []
+            return results
 
         current          = float(hist["Close"].iloc[-1])
         earnings_safe, next_earn = _check_earnings(tk)

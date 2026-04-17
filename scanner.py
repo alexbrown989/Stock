@@ -144,6 +144,9 @@ def _check_earnings(tk: yf.Ticker) -> tuple[bool, Optional[date]]:
         cal = tk.calendar
         candidates: list[date] = []
 
+        if not isinstance(cal, (dict, type(None))) and hasattr(cal, "status_code"):
+            # yfinance 1.3+ returns a Response object — treat as unavailable
+            return True, None
         if isinstance(cal, dict):
             raw = cal.get("Earnings Date", [])
             if not isinstance(raw, list):

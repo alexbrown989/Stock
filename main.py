@@ -33,17 +33,19 @@ from scanner import scan_all
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 os.makedirs(config.LOG_DIR, exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-7s  %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(
-            os.path.join(config.LOG_DIR, "scanner.log"),
-            encoding="utf-8",
-        ),
-    ],
-)
+_root = logging.getLogger()
+if not _root.handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)-7s  %(message)s",
+        handlers=[
+            logging.StreamHandler(sys.stdout),
+            logging.FileHandler(
+                os.path.join(config.LOG_DIR, "scanner.log"),
+                encoding="utf-8",
+            ),
+        ],
+    )
 log = logging.getLogger("main")
 
 

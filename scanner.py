@@ -144,6 +144,9 @@ def _check_earnings(tk: yf.Ticker) -> tuple[bool, Optional[date]]:
         cal = tk.calendar
         candidates: list[date] = []
 
+        if not isinstance(cal, (dict, type(None))) and hasattr(cal, "status_code"):
+            # yfinance 1.3+ returns a Response object — treat as unavailable
+            return True, None
         if isinstance(cal, dict):
             raw = cal.get("Earnings Date", [])
             if not isinstance(raw, list):
@@ -204,25 +207,37 @@ def scan_ticker(symbol: str) -> list[SetupCandidate]:
     """
     results: list[SetupCandidate] = []
     try:
-        tk   = yf.Ticker(symbol)
-        hist = tk.history(period="6mo")   # shared for IV rank + levels
+        tk = yf.Ticker(symbol)
+        try:
+            hist = tk.history(period="6mo")
+        except Exception:
+            return results
         if hist.empty:
-            return []
+            return results
 
         current          = float(hist["Close"].iloc[-1])
         earnings_safe, next_earn = _check_earnings(tk)
         stock_levels     = levels_mod.analyze(symbol, hist)
 
         today = date.today()
-        for exp_str in tk.options:
+        try:
+            options_list = tk.options
+            if not isinstance(options_list, (list, tuple)):
+                return results
+        except Exception:
+            return results
+        for exp_str in options_list:
             exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
             dte      = (exp_date - today).days
             if not (config.DTE_MIN <= dte <= config.DTE_MAX):
                 continue
 
-            mp    = _max_pain(tk, exp_str)
-            chain = tk.option_chain(exp_str)
-            calls = chain.calls.copy()
+            mp = _max_pain(tk, exp_str)
+            try:
+                chain = tk.option_chain(exp_str)
+                calls = chain.calls.copy()
+            except Exception:
+                continue
 
             # Basic pre-filter before the per-row loop
             calls = calls[

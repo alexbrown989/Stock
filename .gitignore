@@ -4,6 +4,7 @@
 
 # Runtime data
 data/
+logs/
 ledger.json
 __pycache__/
 *.py[cod]

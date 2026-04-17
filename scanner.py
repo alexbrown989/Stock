@@ -217,8 +217,11 @@ def scan_ticker(symbol: str) -> list[SetupCandidate]:
         stock_levels     = levels_mod.analyze(symbol, hist)
 
         today = date.today()
-        options_list = tk.options
-        if not isinstance(options_list, (list, tuple)):
+        try:
+            options_list = tk.options
+            if not isinstance(options_list, (list, tuple)):
+                return results
+        except Exception:
             return results
         for exp_str in options_list:
             exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()

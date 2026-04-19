@@ -17,7 +17,12 @@ Usage:
 import argparse
 import json
 import logging
+import os
 import sys
+import time
+
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -125,6 +130,20 @@ def cmd_close(args) -> None:
         print(f"\n[ERROR] Position '{args.id}' not found or already closed.\n")
 
 
+def cmd_daemon(args) -> None:
+    """Run scan on a repeating interval (default 4 hours)."""
+    interval_secs = args.interval * 3600
+    logger.info("Theta Harvest daemon started — scan every %dh", args.interval)
+    while True:
+        try:
+            from strategy.theta_harvest import run_daily_scan
+            run_daily_scan(structures=["short_put", "put_spread"], verbose=True)
+        except Exception as exc:
+            logger.error("Scan cycle error: %s", exc, exc_info=True)
+        logger.info("Next scan in %dh", args.interval)
+        time.sleep(interval_secs)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Theta Harvest Options Pipeline")
     sub = parser.add_subparsers(dest="command")
@@ -168,6 +187,14 @@ def main():
     p_close.add_argument("price", type=float, help="Closing price (debit paid)")
     p_close.add_argument("--reason", help="Close reason")
     p_close.set_defaults(func=cmd_close)
+
+    # daemon — recurring scheduler
+    p_daemon = sub.add_parser("daemon", help="Run scan on a repeating schedule")
+    p_daemon.add_argument(
+        "--interval", type=int, default=4,
+        help="Hours between scans (default: 4)",
+    )
+    p_daemon.set_defaults(func=cmd_daemon)
 
     args = parser.parse_args()
     if not args.command:

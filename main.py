@@ -29,7 +29,7 @@ import config
 import ledger
 import notifier
 import yfinance as yf
-from scanner import scan_all
+from cc_scanner import scan_all
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 os.makedirs(config.LOG_DIR, exist_ok=True)

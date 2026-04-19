@@ -50,10 +50,27 @@ LOG_DIR     = os.path.join(BASE_DIR, "logs")
 # ══════════════════════════════════════════════════════════════════════════════
 
 LIQUID_UNIVERSE = [
-    "SPY", "QQQ", "IWM", "DIA",
-    "XLF", "XLE", "XLK", "XLV", "GDX",
+    # Broad market index ETFs
+    "SPY", "QQQ", "IWM", "DIA", "VOO", "VTI", "TQQQ",
+
+    # Sector ETFs
+    "XLF", "XLE", "XLK", "XLV", "XLU", "XLI", "XLB", "XLP", "XLY", "XLC", "XLRE",
+
+    # International & emerging
+    "EEM", "EFA", "FXI", "KWEB",
+
+    # Fixed income
+    "TLT", "HYG", "LQD", "SHY",
+
+    # Commodity & real assets
+    "GLD", "SLV", "USO", "GDX", "GDXJ",
+
+    # Volatility / risk proxies
+    "VXX", "UVXY",
+
+    # Mega-cap equities
     "AAPL", "MSFT", "NVDA", "META", "GOOGL", "AMZN", "TSLA",
-    "AMD", "NFLX", "JPM", "BAC", "XOM", "CVX",
+    "AMD", "NFLX", "JPM", "BAC", "XOM", "CVX", "UBER", "COIN",
 ]
 
 MIN_OPTIONS_VOLUME         = 500

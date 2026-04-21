@@ -253,7 +253,8 @@ def scan_ticker(symbol: str) -> list[SetupCandidate]:
                 mid    = round((bid + ask) / 2, 2)
                 iv     = float(row.get("impliedVolatility", 0))
                 oi     = int(row.get("openInterest", 0) or 0)
-                vol    = int(row.get("volume", 0) or 0)
+                _vol   = row.get("volume", 0)
+                vol    = int(_vol) if _vol is not None and not (isinstance(_vol, float) and np.isnan(_vol)) else 0
 
                 if mid < config.MIN_PREMIUM or iv <= 0:
                     continue

@@ -70,15 +70,7 @@ def run_once(tickers: list[str] | None = None) -> None:
     current_mids = _fetch_current_mids(open_trades)
     _check_exits(open_trades, current_mids)
 
-    monthly = ledger.monthly_summary()
-    log.info(
-        "Monthly: %.0f%% of target  ($%.0f / $%.0f earned)",
-        monthly["pct_complete"],
-        monthly["earned_this_month"],
-        monthly["target_balance"] - monthly["start_balance"],
-    )
-
-    notifier.send_scan_report(setups, open_trades, monthly, current_mids)
+    notifier.send_scan_report(setups, open_trades, current_mids)
     log.info("─── scan complete ─────────────────────────────────────")
 
 

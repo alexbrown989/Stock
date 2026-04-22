@@ -12,10 +12,16 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 
-# IDE
+# Theta Harvest runtime
+.cache/
+positions.json
+performance.json
+
+# IDE / OS
 .vscode/
 .idea/
-
-# OS
 .DS_Store
 Thumbs.db
+
+# Build
+*.egg-info/
